@@ -403,9 +403,49 @@ restart:
 
         Serial.println("=== END LTE DIAGNOSTICS ===");
 
+#if defined(LILYGO_T_CALL_A7670_V1_0)
+        // Diagnostic recovery: on the user's LTE-only T-Call V1.0,
+        // explicitly try the home PLMN instead of the rejected 26203.
+        // Restore automatic selection if registration still fails.
+        if (networkMode == 38) {
+            Serial.println("=== TELEKOM LTE REGISTRATION TEST ===");
+            Serial.println("[LTE] Attempting Telekom (26201) LTE registration");
+            modem.sendAT("+COPS=1,2,\"26201\",7");
+            String selectResponse;
+            const int8_t selectResult = modem.waitResponse(90000L, selectResponse);
+            Serial.print(selectResponse);
+            Serial.printf("[LTE] Operator selection result: %d\n", static_cast<int>(selectResult));
+
+            if (selectResult == 1) {
+                Serial.print("[LTE] Waiting for Telekom registration...");
+                if (modem.waitForNetwork(20000L)) {
+                    Serial.println("success");
+                    Serial.println("=== END TELEKOM LTE REGISTRATION TEST ===");
+                    goto network_registered;
+                }
+                Serial.println("fail");
+
+                modem.sendAT("+CEREG?");
+                String registrationResponse;
+                const int8_t registrationResult = modem.waitResponse(3000L, registrationResponse);
+                Serial.print(registrationResponse);
+                Serial.printf("[LTE] Registration query result: %d\n", static_cast<int>(registrationResult));
+            }
+
+            Serial.println("[LTE] Restoring automatic operator selection");
+            modem.sendAT("+COPS=0");
+            String automaticResponse;
+            const int8_t automaticResult = modem.waitResponse(90000L, automaticResponse);
+            Serial.print(automaticResponse);
+            Serial.printf("[LTE] Automatic selection result: %d\n", static_cast<int>(automaticResult));
+            Serial.println("=== END TELEKOM LTE REGISTRATION TEST ===");
+        }
+#endif
+
         delay(3000);
         goto restart;
     }
+network_registered:
     Serial.println("...success");
 
     if (modem.isNetworkConnected()) {
