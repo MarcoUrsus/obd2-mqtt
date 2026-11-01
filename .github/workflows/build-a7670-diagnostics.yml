@@ -2,6 +2,12 @@ name: Build T-Call A7670 V1.0 firmware
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - src/gsm.cpp
+      - .github/workflows/build-a7670-diagnostics.yml
 
 jobs:
   firmware:
