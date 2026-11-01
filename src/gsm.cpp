@@ -408,6 +408,28 @@ restart:
         // explicitly try the home PLMN instead of the rejected 26203.
         // Restore automatic selection if registration still fails.
         if (networkMode == 38) {
+            // modem.init() disables verbose CME diagnostics; enable them
+            // explicitly before querying network availability and selection.
+            modem.sendAT("+CMEE=2");
+            String cmeeResponse;
+            const int8_t cmeeResult = modem.waitResponse(3000L, cmeeResponse);
+            Serial.printf("[LTE] Enable verbose modem errors: %d\n", static_cast<int>(cmeeResult));
+            Serial.print(cmeeResponse);
+
+            // A full PLMN scan may take a while. Scan only once per boot,
+            // not on every registration retry.
+            static bool networkScanAttempted = false;
+            if (!networkScanAttempted) {
+                networkScanAttempted = true;
+                Serial.println("=== LTE NETWORK SCAN ===");
+                modem.sendAT("+COPS=?");
+                String scanResponse;
+                const int8_t scanResult = modem.waitResponse(120000L, scanResponse);
+                Serial.print(scanResponse);
+                Serial.printf("[LTE] Network scan result: %d\n", static_cast<int>(scanResult));
+                Serial.println("=== END LTE NETWORK SCAN ===");
+            }
+
             Serial.println("=== TELEKOM LTE REGISTRATION TEST ===");
             Serial.println("[LTE] Attempting Telekom (26201) LTE registration");
             modem.sendAT("+COPS=1,2,\"26201\",7");
