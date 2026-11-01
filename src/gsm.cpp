@@ -375,6 +375,34 @@ restart:
     Serial.print("Waiting for network...");
     if (!modem.waitForNetwork()) {
         Serial.println("...fail");
+
+        // Dump the current modem registration state before retrying.
+        // Avoid logging SIM identifiers, configured credentials, or the PIN.
+        Serial.println("=== LTE DIAGNOSTICS ===");
+
+        const char *commands[] = {
+            "+CPIN?",  // SIM lock / ready state
+            "+CEREG?", // LTE network registration
+            "+COPS?",  // Selected network operator
+            "+CPSI?",  // Radio access technology and serving cell
+            "+CNMP?",  // Configured network mode
+            "+CFUN?",  // Modem functionality
+            "+CSQ",    // Signal quality
+            "+CEER"    // Extended error information (if supported)
+        };
+
+        for (const char *command : commands) {
+            String response;
+            modem.sendAT(command);
+            const int8_t result = modem.waitResponse(3000L, response);
+
+            Serial.printf("[AT] AT%s\n", command);
+            Serial.print(response);
+            Serial.printf("[AT] Result: %d\n", static_cast<int>(result));
+        }
+
+        Serial.println("=== END LTE DIAGNOSTICS ===");
+
         delay(3000);
         goto restart;
     }
